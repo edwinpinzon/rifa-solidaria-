@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌱 Rifa Solidaria — Marta Martínez</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=Lora:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0b1608;
+  --bg2:      #111f0d;
+  --border:   #2a4a22;
+  --border2:  #3d6a32;
+  --gold:     #e2b93b;
+  --gold2:    #a8841a;
+  --green:    #4aaa38;
+  --gdim:     #2a6a20;
+  --text:     #dff0d0;
+  --tdim:     #7aaa68;
+  --tmuted:   #3a6030;
+  --sold-bg:  #0d3a09;
+  --sold-b:   #1e7a16;
+  --sold-g:   rgba(74,170,56,0.35);
+  --res-bg:   #3d2e00;
+  --res-b:    #6a5000;
+  --res-t:    #c8980a;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);font-family:'Outfit',sans-serif;color:var(--text);min-height:100vh;}
+
+/* HEADER */
+.hdr{
+  background:linear-gradient(160deg,#0d2208,#162610);
+  border-bottom:2px solid var(--gold2);
+  padding:14px 18px 11px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+  box-shadow:0 4px 20px rgba(0,0,0,0.6);
+}
+.hdr-l h1{font-size:1.15rem;font-weight:900;color:var(--gold);letter-spacing:1px;}
+.hdr-l p {font-size:0.65rem;color:var(--tdim);font-family:'Lora',serif;font-style:italic;}
+.hdr-r  {display:flex;align-items:center;gap:12px;}
+.stats  {display:flex;gap:12px;}
+.st     {text-align:center;}
+.st-n   {font-size:1.2rem;font-weight:900;line-height:1;}
+.st-n.v {color:var(--green);}
+.st-n.l {color:var(--tdim);}
+.st-n.m {color:var(--gold);font-size:.95rem;}
+.st-l   {font-size:.55rem;color:var(--tmuted);text-transform:uppercase;letter-spacing:.5px;}
+.dot    {width:8px;height:8px;border-radius:50%;background:#555;transition:background .3s;}
+.dot.on {background:var(--green);box-shadow:0 0 6px var(--sold-g);animation:pulse 2s infinite;}
+.dot.off{background:#993333;}
+@keyframes pulse{0%,100%{box-shadow:0 0 4px var(--sold-g)}50%{box-shadow:0 0 10px var(--sold-g)}}
+
+/* TABS */
+.tabs{display:flex;background:#0a1507;border-bottom:1px solid var(--border);position:sticky;top:62px;z-index:99;}
+.tb{flex:1;padding:9px 4px 7px;background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.62rem;font-weight:700;color:var(--tmuted);text-transform:uppercase;letter-spacing:.5px;border-bottom:3px solid transparent;transition:all .18s;}
+.tb .i{display:block;font-size:.95rem;margin-bottom:1px;}
+.tb.active{color:var(--gold);border-bottom-color:var(--gold);background:rgba(226,185,59,.05);}
+
+/* PANELS */
+.pnl{display:none;padding:14px;max-width:820px;margin:0 auto;}
+.pnl.active{display:block;}
+
+/* PROGRESS */
+.prog-wrap{margin-bottom:12px;}
+.prog-track{background:rgba(255,255,255,.05);border-radius:20px;height:7px;overflow:hidden;border:1px solid var(--border);margin-bottom:4px;}
+.prog-fill{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--gdim),var(--green),var(--gold));transition:width .5s ease;}
+.prog-lbl{font-size:.66rem;color:var(--tmuted);display:flex;justify-content:space-between;}
+
+/* TALONARIO CARD */
+.tal-card{
+  background:linear-gradient(160deg,#0d2208,#111f0d);
+  border:2px solid var(--gold2);border-radius:16px;
+  padding:14px 12px 16px;margin-bottom:12px;
+}
+.tal-head{text-align:center;margin-bottom:10px;}
+.tal-head h2{font-size:.88rem;font-weight:900;color:var(--gold);letter-spacing:2px;text-transform:uppercase;}
+.tal-head p{font-size:.62rem;color:var(--tdim);font-family:'Lora',serif;font-style:italic;margin-top:1px;}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;}
+.cell{
+  aspect-ratio:1;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.68rem;font-weight:800;
+  font-family:'JetBrains Mono',monospace;
+  cursor:pointer;transition:transform .12s,box-shadow .15s;
+  user-select:none;
+}
+.cell:hover{transform:scale(1.18);z-index:2;}
+.cell.libre{background:#1a2e16;border:1px solid #2a4422;color:#4a7040;}
+.cell.libre:hover{background:#243820;border-color:#3a6a2e;color:var(--tdim);}
+.cell.vendido{
+  background:var(--sold-bg);border:1.5px solid var(--sold-b);
+  color:#7aee68;
+  box-shadow:0 0 7px var(--sold-g),inset 0 1px 0 rgba(74,170,56,.2);
+  text-shadow:0 0 5px rgba(74,230,56,.5);
+  cursor:default;
+}
+.cell.reservado{background:var(--res-bg);border:1.5px solid var(--res-b);color:var(--res-t);}
+.cell.nuevo{animation:flash .7s ease;}
+@keyframes flash{0%{transform:scale(1.35);box-shadow:0 0 20px rgba(226,185,59,.9)}100%{transform:scale(1)}}
+
+.ley{display:flex;gap:12px;justify-content:center;margin-top:10px;flex-wrap:wrap;}
+.li{display:flex;align-items:center;gap:4px;font-size:.62rem;color:var(--tdim);}
+.ld{width:10px;height:10px;border-radius:3px;}
+.ld-l{background:#1a2e16;border:1px solid #2a4422;}
+.ld-v{background:var(--sold-bg);border:1.5px solid var(--sold-b);box-shadow:0 0 4px var(--sold-g);}
+.ld-r{background:var(--res-bg);border:1px solid var(--res-b);}
+
+.tal-foot{text-align:center;margin-top:10px;font-size:.6rem;color:var(--tmuted);font-family:'Lora',serif;font-style:italic;}
+
+.btn-cap{
+  width:100%;padding:11px;
+  background:linear-gradient(135deg,#1a6a10,#0d3a08);
+  border:1.5px solid var(--green);border-radius:10px;cursor:pointer;
+  font-family:'Outfit',sans-serif;font-size:.8rem;font-weight:700;
+  color:#9aee88;letter-spacing:.5px;transition:all .18s;margin-bottom:8px;
+}
+.btn-cap:hover{box-shadow:0 4px 14px rgba(74,170,56,.3);}
+
+/* INFO BOX */
+.info{background:rgba(226,185,59,.07);border:1px solid rgba(226,185,59,.2);border-radius:10px;padding:12px;font-size:.76rem;line-height:1.7;color:var(--tdim);margin-bottom:12px;}
+.info strong{color:var(--text);}
+
+/* FORMULARIO RESERVA (público) */
+.res-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:12px;}
+.res-card h3{font-size:.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:14px;}
+.fld{margin-bottom:11px;}
+.fld label{display:block;font-size:.63rem;font-weight:700;color:var(--tdim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.fld input,.fld select{
+  width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);
+  border-radius:9px;padding:10px 12px;color:var(--text);
+  font-size:.87rem;font-family:'Outfit',sans-serif;outline:none;transition:border .18s;
+}
+.fld input:focus,.fld select:focus{border-color:var(--gold2);background:rgba(226,185,59,.04);}
+.fld input::placeholder{color:var(--tmuted);}
+.fld select option{background:#111f0d;}
+
+.btn{width:100%;padding:12px;border:none;border-radius:10px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;font-size:.87rem;letter-spacing:1px;text-transform:uppercase;transition:all .18s;}
+.btn-g{background:linear-gradient(135deg,#1a7a10,#0d4008);border:1.5px solid var(--green);color:#9aee88;box-shadow:0 3px 12px rgba(74,170,56,.2);}
+.btn-g:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(74,170,56,.3);}
+.btn-g:disabled{opacity:.4;cursor:not-allowed;transform:none !important;}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));border:1.5px solid var(--gold);color:#0b1608;margin-top:8px;}
+.btn-ghost{background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--tdim);margin-top:8px;}
+.btn-red{background:rgba(100,20,20,.5);border:1px solid #6a2020;color:#ffaaaa;margin-top:8px;font-size:.78rem;}
+
+/* LISTA COMPRADORES (admin) */
+.search-wrap{position:relative;margin-bottom:10px;}
+.search-wrap input{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:9px;padding:9px 12px 9px 32px;color:var(--text);font-size:.85rem;font-family:'Outfit',sans-serif;outline:none;}
+.search-wrap input:focus{border-color:var(--gold2);}
+.search-wrap input::placeholder{color:var(--tmuted);}
+.s-ico{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--tmuted);font-size:.78rem;}
+
+.buyer{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:border-color .15s;}
+.buyer:hover{border-color:var(--border2);}
+.bnum{min-width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;}
+.bnum.vendido{background:var(--sold-bg);border:1.5px solid var(--sold-b);color:#7aee68;box-shadow:0 0 6px var(--sold-g);}
+.bnum.reservado{background:var(--res-bg);border:1.5px solid var(--res-b);color:var(--res-t);}
+.binfo{flex:1;min-width:0;}
+.bname{font-size:.87rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.btel{font-size:.68rem;color:var(--tdim);margin-top:1px;}
+.bdg{font-size:.58rem;font-weight:700;letter-spacing:.5px;padding:3px 8px;border-radius:7px;text-transform:uppercase;white-space:nowrap;}
+.bdg.v{background:rgba(26,120,22,.4);color:#7aee68;border:1px solid var(--sold-b);}
+.bdg.r{background:rgba(61,46,0,.6);color:var(--res-t);border:1px solid var(--res-b);}
+
+.empty{text-align:center;padding:28px;color:var(--tmuted);}
+.empty-i{font-size:1.7rem;margin-bottom:6px;}
+
+/* RESUMEN */
+.rg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.rc{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:9px;padding:10px;text-align:center;}
+.rc.w{grid-column:1/-1;}
+.rn{font-size:1.4rem;font-weight:900;line-height:1;}
+.rl{font-size:.58rem;color:var(--tmuted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+
+/* ADMIN LOCK */
+.lock-wrap{text-align:center;padding:50px 20px;}
+.lock-i{font-size:2.5rem;margin-bottom:10px;}
+.lock-wrap h3{color:var(--gold);margin-bottom:6px;}
+.lock-wrap p{color:var(--tdim);font-size:.8rem;margin-bottom:18px;}
+.lock-in{
+  background:rgba(255,255,255,.07);border:1px solid rgba(226,185,59,.3);
+  border-radius:9px;padding:11px;color:var(--text);
+  text-align:center;font-size:1rem;letter-spacing:3px;
+  width:100%;outline:none;margin-bottom:10px;font-family:'Outfit',sans-serif;
+}
+
+/* MODAL */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;align-items:center;justify-content:center;padding:16px;}
+.ov.open{display:flex;}
+.modal{
+  background:linear-gradient(145deg,#0f2208,#182e12);
+  border:2px solid var(--gold2);border-radius:16px;padding:22px;
+  width:100%;max-width:370px;
+  box-shadow:0 20px 60px rgba(0,0,0,.7);
+  animation:pop .16s ease;
+}
+@keyframes pop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+.m-num{text-align:center;font-family:'JetBrains Mono',monospace;font-size:3rem;font-weight:700;color:var(--gold);text-shadow:0 2px 14px rgba(226,185,59,.5);margin-bottom:4px;line-height:1;}
+.m-st{text-align:center;font-size:.7rem;margin-bottom:12px;}
+.m-dt{font-size:.8rem;color:var(--tdim);line-height:1.9;margin-bottom:14px;}
+.m-dt strong{color:var(--text);}
+.m-ac{display:flex;gap:6px;flex-wrap:wrap;}
+.m-ac .btn{margin:0;flex:1;min-width:90px;}
+
+/* SUCCESS */
+.success-box{
+  background:rgba(26,120,22,.2);border:2px solid var(--sold-b);
+  border-radius:14px;padding:22px;text-align:center;margin-bottom:14px;
+  animation:pop .2s ease;
+}
+.success-box .big{font-size:2.8rem;font-weight:900;color:var(--gold);font-family:'JetBrains Mono',monospace;}
+.success-box p{font-size:.85rem;color:var(--text);margin-top:6px;line-height:1.7;}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  background:var(--gdim);color:#baffaa;
+  padding:9px 20px;border-radius:20px;font-size:.78rem;font-weight:600;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:999;opacity:0;pointer-events:none;
+  transition:opacity .25s;white-space:nowrap;border:1px solid var(--green);
+}
+.toast.show{opacity:1;}
+.toast.err{background:rgba(100,20,20,.95);color:#ffaaaa;border-color:#8b1a1a;}
+
+.sec{font-size:.63rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--tmuted);margin:16px 0 8px;display:flex;align-items:center;gap:8px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--border);}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-l">
+    <h1>🌱 RIFA SOLIDARIA</h1>
+    <p>Marta Martínez · Anillos Intraestromales</p>
+  </div>
+  <div class="hdr-r">
+    <div class="stats">
+      <div class="st"><div class="st-n v" id="h-v">0</div><div class="st-l">Vendidas</div></div>
+      <div class="st"><div class="st-n l" id="h-l">100</div><div class="st-l">Libres</div></div>
+      <div class="st"><div class="st-n m" id="h-m">$0</div><div class="st-l">Recaudo</div></div>
+    </div>
+    <div class="dot" id="dot" title="Conexión"></div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs" id="tabs-publico">
+  <button class="tb active" onclick="showTab('talonario')"><span class="i">📋</span>TALONARIO</button>
+  <button class="tb"        onclick="showTab('reservar')" ><span class="i">🎟️</span>RESERVAR</button>
+  <button class="tb"        onclick="showTab('acceso')"   ><span class="i">🔐</span>ADMIN</button>
+</div>
+<div class="tabs" id="tabs-admin" style="display:none">
+  <button class="tb active" onclick="showTab('a-talonario')"><span class="i">📋</span>TALONARIO</button>
+  <button class="tb"        onclick="showTab('a-lista')"    ><span class="i">👥</span>COMPRADORES</button>
+  <button class="tb"        onclick="showTab('a-resumen')"  ><span class="i">📊</span>RESUMEN</button>
+  <button class="tb"        onclick="salirAdmin()"          ><span class="i">🚪</span>SALIR</button>
+</div>
+
+<!-- ══ TALONARIO (público) ══ -->
+<div id="tab-talonario" class="pnl active">
+  <div class="prog-wrap">
+    <div class="prog-track"><div class="prog-fill" id="pf" style="width:0%"></div></div>
+    <div class="prog-lbl"><span id="pt">0/100</span><span id="pp">0%</span></div>
+  </div>
+  <div class="tal-card" id="capture-area">
+    <div class="tal-head">
+      <h2>🌱 RIFA SOLIDARIA 🌱</h2>
+      <p>Implante de Anillos Intraestromales · Marta Martínez</p>
+    </div>
+    <div class="grid" id="grid-pub"></div>
+    <div class="ley">
+      <div class="li"><div class="ld ld-l"></div>Libre</div>
+      <div class="li"><div class="ld ld-v"></div>Vendido</div>
+      <div class="li"><div class="ld ld-r"></div>Reservado</div>
+    </div>
+    <div class="tal-foot">🎟️ $10.000 · 🎁 Mercado $100.000 · 📅 ~25 Abril · 💳 Nequi/Daviplata 321 808 6437</div>
+  </div>
+  <button class="btn-cap" onclick="capturar()">📸 GUARDAR IMAGEN PARA COMPARTIR</button>
+  <div class="info">
+    👆 <strong>Toca un número verde</strong> para reservarlo.<br>
+    💚 Verde brillante = vendido &nbsp;·&nbsp; 🟡 Dorado = reservado
+  </div>
+</div>
+
+<!-- ══ RESERVAR (público) ══ -->
+<div id="tab-reservar" class="pnl">
+  <div id="reserva-form">
+    <div class="res-card">
+      <h3>🎟️ Reservar mi boleta</h3>
+      <div id="num-elegido-box" style="display:none;background:rgba(226,185,59,.08);border:1px solid var(--gold2);border-radius:10px;padding:12px;text-align:center;margin-bottom:14px;">
+        <div style="font-size:.65rem;color:var(--gold);letter-spacing:1px;margin-bottom:2px">NÚMERO SELECCIONADO</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:2.5rem;font-weight:700;color:var(--gold)" id="num-elegido-display">—</div>
+      </div>
+      <div class="fld">
+        <label>Número de boleta *</label>
+        <select id="f-num">
+          <option value="">— Elige tu número (00–99) —</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label>Tu nombre completo *</label>
+        <input type="text" id="f-nombre" placeholder="Ej: Juan García" autocomplete="off">
+      </div>
+      <div class="fld">
+        <label>Tu teléfono (para confirmar)</label>
+        <input type="tel" id="f-tel" placeholder="Ej: 3001234567">
+      </div>
+      <div class="info" style="margin-bottom:14px;">
+        💳 Después de reservar, paga por <strong>Nequi o Daviplata</strong> al<br>
+        <strong style="color:var(--gold)">321 808 6437</strong> · Martha Martínez<br>
+        Envía el comprobante al mismo número por WhatsApp ✅
+      </div>
+      <button class="btn btn-g" id="btn-res" onclick="reservar()">✅ RESERVAR ESTE NÚMERO</button>
+    </div>
+  </div>
+  <div id="reserva-exito" style="display:none"></div>
+</div>
+
+<!-- ══ ACCESO ADMIN ══ -->
+<div id="tab-acceso" class="pnl">
+  <div class="lock-wrap">
+    <div class="lock-i">🔐</div>
+    <h3>Acceso Administrador</h3>
+    <p>Solo para Martha Martínez</p>
+    <input class="lock-in" type="password" id="clave-in" placeholder="••••••••" maxlength="20"
+      onkeydown="if(event.key==='Enter')verificarClave()">
+    <button class="btn btn-gold" onclick="verificarClave()">INGRESAR</button>
+  </div>
+</div>
+
+<!-- ══ ADMIN: TALONARIO ══ -->
+<div id="tab-a-talonario" class="pnl" style="display:none">
+  <div class="prog-wrap">
+    <div class="prog-track"><div class="prog-fill" id="pf2" style="width:0%"></div></div>
+    <div class="prog-lbl"><span id="pt2">0/100</span><span id="pp2">0%</span></div>
+  </div>
+  <div class="tal-card">
+    <div class="tal-head">
+      <h2>🔐 VISTA ADMIN</h2>
+      <p>Toca un número para gestionar</p>
+    </div>
+    <div class="grid" id="grid-admin"></div>
+    <div class="ley">
+      <div class="li"><div class="ld ld-l"></div>Libre</div>
+      <div class="li"><div class="ld ld-v"></div>Vendido</div>
+      <div class="li"><div class="ld ld-r"></div>Reservado</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN: COMPRADORES ══ -->
+<div id="tab-a-lista" class="pnl" style="display:none">
+  <div class="search-wrap">
+    <span class="s-ico">🔍</span>
+    <input type="text" id="buscador" placeholder="Buscar nombre, número o teléfono…" oninput="renderAdminLista()">
+  </div>
+  <div id="admin-lista"></div>
+</div>
+
+<!-- ══ ADMIN: RESUMEN ══ -->
+<div id="tab-a-resumen" class="pnl" style="display:none">
+  <div class="res-card" style="margin-bottom:12px">
+    <h3>📊 Resumen</h3>
+    <div id="resumen-content"></div>
+  </div>
+  <div class="res-card">
+    <h3>💾 Exportar datos</h3>
+    <button class="btn btn-gold" onclick="exportar()">⬇️ DESCARGAR JSON</button>
+  </div>
+  <div class="res-card" style="border-color:rgba(100,20,20,.4)">
+    <h3 style="color:#ff8888">⚠️ Zona de peligro</h3>
+    <p style="font-size:.75rem;color:var(--tmuted);margin-bottom:10px">Libera todas las boletas. No se puede deshacer.</p>
+    <button class="btn btn-red" onclick="reiniciar()">🗑️ REINICIAR TODO</button>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="ov" id="ov" onclick="cerrarModal(event)">
+  <div class="modal">
+    <div class="m-num"  id="m-num"></div>
+    <div class="m-st"   id="m-st"></div>
+    <div class="m-dt"   id="m-dt"></div>
+    <div class="m-ac"   id="m-ac"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG — la clave se inyecta desde server
+// ══════════════════════════════════════════
+const ADMIN_KEY = '__ADMIN_KEY_PLACEHOLDER__';
+
+// ══════════════════════════════════════════
+//  ESTADO
+// ══════════════════════════════════════════
+let boletas = Array.from({length:100},(_,i)=>({n:String(i).padStart(2,'0'),estado:'libre',nombre:'',tel:'',ts:null}));
+let esAdmin  = false;
+let ws       = null;
+let modalN   = null;
+
+// Detectar si viene con ?admin&k=...
+(function detectAdmin(){
+  const p = new URLSearchParams(location.search);
+  if(p.get('k') === ADMIN_KEY) entrarAdmin();
+})();
+
+// ══════════════════════════════════════════
+//  WEBSOCKET
+// ══════════════════════════════════════════
+function conectarWS(){
+  const proto = location.protocol==='https:'?'wss':'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen  = ()=>{ setDot('on'); };
+  ws.onclose = ()=>{ setDot('off'); setTimeout(conectarWS,3000); };
+  ws.onerror = ()=>ws.close();
+  ws.onmessage = e=>{
+    const msg = JSON.parse(e.data);
+    if(msg.tipo==='init'){
+      boletas = msg.boletas;
+      renderTodo();
+    } else if(msg.tipo==='actualizar'){
+      const idx = parseInt(msg.boleta.n);
+      const nuevo = boletas[idx].estado==='libre' && msg.boleta.estado!=='libre';
+      boletas[idx] = msg.boleta;
+      renderTodo(nuevo ? msg.boleta.n : null);
+      if(nuevo && !esAdmin) toast('🎟️ Boleta #'+msg.boleta.n+' recién reservada');
+    }
+  };
+}
+function setDot(s){ const d=document.getElementById('dot'); d.className='dot '+s; }
+
+// ══════════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════════
+function stats(){
+  const v=boletas.filter(b=>b.estado==='vendido').length;
+  const r=boletas.filter(b=>b.estado==='reservado').length;
+  return {v,r,l:100-v-r,t:v+r,rec:v*10000};
+}
+function actualizarStats(){
+  const s=stats();
+  document.getElementById('h-v').textContent = s.v+s.r;
+  document.getElementById('h-l').textContent = s.l;
+  document.getElementById('h-m').textContent = s.rec>=1000000?'$'+(s.rec/1000000).toFixed(1)+'M':'$'+(s.rec/1000).toFixed(0)+'K';
+  ['','2'].forEach(sfx=>{
+    const pf=document.getElementById('pf'+sfx);
+    const pt=document.getElementById('pt'+sfx);
+    const pp=document.getElementById('pp'+sfx);
+    if(pf){ pf.style.width=s.t+'%'; pt.textContent=s.t+'/100'; pp.textContent=s.t+'%'; }
+  });
+}
+
+// ══════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════
+function renderTodo(flashN=null){
+  actualizarStats();
+  renderGridPub(flashN);
+  if(esAdmin){
+    renderGridAdmin(flashN);
+    renderAdminLista();
+    renderResumen();
+  }
+  poblarSelect();
+}
+
+function buildGrid(containerId, clickFn, flashN){
+  const g=document.getElementById(containerId);
+  if(!g) return;
+  g.innerHTML='';
+  boletas.forEach(b=>{
+    const c=document.createElement('div');
+    c.className='cell '+b.estado+(b.n===flashN?' nuevo':'');
+    c.textContent=b.n;
+    c.title=b.estado==='libre'?'Disponible – toca para reservar':`${b.nombre||'—'} (${b.estado})`;
+    c.onclick=()=>clickFn(b.n);
+    g.appendChild(c);
+  });
+}
+
+function renderGridPub(flashN){
+  buildGrid('grid-pub', n=>{
+    const b=boletas[parseInt(n)];
+    if(b.estado==='libre'){ document.getElementById('f-num').value=n; actualizarNumElegido(); showTab('reservar'); }
+    else toast('Boleta #'+n+(b.estado==='vendido'?' ya fue vendida':' está reservada'), true);
+  }, flashN);
+}
+
+function renderGridAdmin(flashN){
+  buildGrid('grid-admin', abrirModal, flashN);
+}
+
+function poblarSelect(){
+  const sel=document.getElementById('f-num');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— Elige tu número (00–99) —</option>';
+  boletas.filter(b=>b.estado==='libre').forEach(b=>{
+    const o=document.createElement('option');
+    o.value=b.n; o.textContent='#'+b.n;
+    sel.appendChild(o);
+  });
+  if(cur) sel.value=cur;
+  sel.onchange=actualizarNumElegido;
+}
+
+function actualizarNumElegido(){
+  const n=document.getElementById('f-num').value;
+  const box=document.getElementById('num-elegido-box');
+  const disp=document.getElementById('num-elegido-display');
+  if(n){ box.style.display='block'; disp.textContent='#'+n; }
+  else  { box.style.display='none'; }
+}
+
+function renderAdminLista(){
+  const q=(document.getElementById('buscador')?.value||'').toLowerCase();
+  const cont=document.getElementById('admin-lista');
+  const items=boletas.filter(b=>{
+    if(b.estado==='libre') return false;
+    if(!q) return true;
+    return b.nombre.toLowerCase().includes(q)||b.n.includes(q)||(b.tel||'').includes(q);
+  }).sort((a,b)=>parseInt(a.n)-parseInt(b.n));
+  if(!items.length){
+    cont.innerHTML=`<div class="empty"><div class="empty-i">🎟️</div>${q?'Sin resultados':'Sin registros aún'}</div>`;
+    return;
+  }
+  cont.innerHTML=items.map(b=>`
+    <div class="buyer" onclick="abrirModal('${b.n}')">
+      <div class="bnum ${b.estado}">${b.n}</div>
+      <div class="binfo">
+        <div class="bname">${b.nombre||'—'}</div>
+        <div class="btel">${b.tel?'📱 '+b.tel:'Sin tel'} · ${b.ts?new Date(b.ts).toLocaleDateString('es-CO'):''}</div>
+      </div>
+      <span class="bdg ${b.estado==='vendido'?'v':'r'}">${b.estado==='vendido'?'✅ Pagó':'⏳ Pendiente'}</span>
+    </div>`).join('');
+}
+
+function renderResumen(){
+  const s=stats();
+  const pct=Math.min(s.rec/10000,100).toFixed(1);
+  document.getElementById('resumen-content').innerHTML=`
+    <div class="rg">
+      <div class="rc"><div class="rn" style="color:#7aee68">${s.v}</div><div class="rl">Pagadas ✅</div></div>
+      <div class="rc"><div class="rn" style="color:var(--res-t)">${s.r}</div><div class="rl">Reservadas ⏳</div></div>
+      <div class="rc"><div class="rn" style="color:var(--tdim)">${s.l}</div><div class="rl">Libres 🟢</div></div>
+      <div class="rc"><div class="rn" style="color:var(--gold);font-size:1.1rem">$${s.rec.toLocaleString('es-CO')}</div><div class="rl">Recaudo confirmado</div></div>
+      <div class="rc w">
+        <div style="font-size:.68rem;color:var(--tmuted);margin-bottom:5px">Meta $1.000.000 → ${pct}%</div>
+        <div style="background:rgba(255,255,255,.04);border-radius:5px;height:6px;overflow:hidden;border:1px solid var(--border)">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--gdim),var(--green),var(--gold));border-radius:5px;transition:width .4s"></div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:.65rem;color:var(--tmuted);text-align:right">📊 Datos en Google Sheets · ${new Date().toLocaleString('es-CO')}</div>`;
+}
+
+// ══════════════════════════════════════════
+//  RESERVAR (público)
+// ══════════════════════════════════════════
+async function reservar(){
+  const n      = document.getElementById('f-num').value;
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const tel    = document.getElementById('f-tel').value.trim();
+
+  if(!n)     { toast('⚠️ Elige un número', true); return; }
+  if(!nombre){ toast('⚠️ Ingresa tu nombre', true); return; }
+
+  const btn=document.getElementById('btn-res');
+  btn.disabled=true; btn.textContent='Reservando…';
+
+  try{
+    const r=await fetch('/reservar',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({n,nombre,tel})
+    });
+    const data=await r.json();
+    if(data.ok){
+      document.getElementById('reserva-form').style.display='none';
+      document.getElementById('reserva-exito').style.display='block';
+      document.getElementById('reserva-exito').innerHTML=`
+        <div class="success-box">
+          <div style="font-size:2rem;margin-bottom:6px">🎉</div>
+          <div class="big">#${n}</div>
+          <p><strong>${nombre}</strong>, tu boleta fue reservada exitosamente.<br><br>
+          Ahora paga <strong style="color:var(--gold)">$10.000</strong> por:<br>
+          <strong>Nequi / Daviplata: 321 808 6437</strong><br>
+          Martha Martínez<br><br>
+          Envía el comprobante por WhatsApp al mismo número 📲<br>
+          Tu boleta será confirmada en cuanto recibamos el pago ✅</p>
+        </div>
+        <button class="btn btn-g" onclick="nuevaReserva()">🎟️ RESERVAR OTRA BOLETA</button>`;
+      toast('✅ Boleta #'+n+' reservada para '+nombre);
+    } else {
+      toast('❌ '+data.error, true);
+      btn.disabled=false; btn.textContent='✅ RESERVAR ESTE NÚMERO';
+    }
+  } catch(e){
+    toast('❌ Error de conexión', true);
+    btn.disabled=false; btn.textContent='✅ RESERVAR ESTE NÚMERO';
+  }
+}
+
+function nuevaReserva(){
+  document.getElementById('reserva-form').style.display='block';
+  document.getElementById('reserva-exito').style.display='none';
+  document.getElementById('f-num').value='';
+  document.getElementById('f-nombre').value='';
+  document.getElementById('f-tel').value='';
+  document.getElementById('num-elegido-box').style.display='none';
+  document.getElementById('btn-res').disabled=false;
+  document.getElementById('btn-res').textContent='✅ RESERVAR ESTE NÚMERO';
+}
+
+// ══════════════════════════════════════════
+//  ADMIN ACCIONES
+// ══════════════════════════════════════════
+function verificarClave(){
+  const k=document.getElementById('clave-in').value;
+  if(k===ADMIN_KEY){ entrarAdmin(); document.getElementById('clave-in').value=''; }
+  else{ toast('❌ Clave incorrecta',true); document.getElementById('clave-in').value=''; }
+}
+
+function entrarAdmin(){
+  esAdmin=true;
+  document.getElementById('tabs-publico').style.display='none';
+  document.getElementById('tabs-admin').style.display='flex';
+  // Ocultar todos los panels públicos
+  ['talonario','reservar','acceso'].forEach(t=>{ const p=document.getElementById('tab-'+t); if(p){p.classList.remove('active');p.style.display='none';} });
+  // Mostrar panels admin
+  ['a-talonario','a-lista','a-resumen'].forEach(t=>{ const p=document.getElementById('tab-'+t); if(p) p.style.display='block'; });
+  showTab('a-talonario');
+  renderTodo();
+}
+
+function salirAdmin(){
+  esAdmin=false;
+  document.getElementById('tabs-admin').style.display='none';
+  document.getElementById('tabs-publico').style.display='flex';
+  ['a-talonario','a-lista','a-resumen'].forEach(t=>{ const p=document.getElementById('tab-'+t); if(p){p.style.display='none';p.classList.remove('active');} });
+  ['talonario','reservar','acceso'].forEach(t=>{ const p=document.getElementById('tab-'+t); if(p) p.style.display='block'; });
+  showTab('talonario');
+}
+
+async function adminPost(endpoint, body){
+  const r=await fetch(endpoint+'?k='+ADMIN_KEY,{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
+  });
+  return r.json();
+}
+
+function abrirModal(n){
+  modalN=n;
+  const b=boletas[parseInt(n)];
+  document.getElementById('m-num').textContent='#'+n;
+  const st=document.getElementById('m-st');
+  const dt=document.getElementById('m-dt');
+  const ac=document.getElementById('m-ac');
+  if(b.estado==='libre'){
+    st.innerHTML='<span style="color:var(--tdim)">🟢 Libre</span>';
+    dt.innerHTML='Sin comprador';
+    ac.innerHTML=`<button class="btn btn-ghost" onclick="cerrarModal()">Cerrar</button>`;
+  } else {
+    st.innerHTML=b.estado==='vendido'
+      ?'<span style="color:#7aee68">✅ VENDIDO</span>'
+      :'<span style="color:var(--res-t)">⏳ RESERVADO</span>';
+    dt.innerHTML=`<strong>Nombre:</strong> ${b.nombre||'—'}<br><strong>Teléfono:</strong> ${b.tel||'—'}<br><strong>Fecha:</strong> ${b.ts?new Date(b.ts).toLocaleString('es-CO'):'—'}`;
+    ac.innerHTML=`
+      ${b.estado==='reservado'?`<button class="btn btn-g" onclick="confirmarPago('${n}')">✅ Confirmar pago</button>`:''}
+      <button class="btn btn-red" onclick="liberarBoleta('${n}')">🗑️ Liberar</button>
+      <button class="btn btn-ghost" onclick="cerrarModal()">✕</button>`;
+  }
+  document.getElementById('ov').classList.add('open');
+}
+
+function cerrarModal(e){
+  if(e && e.target!==document.getElementById('ov')) return;
+  document.getElementById('ov').classList.remove('open');
+}
+
+async function confirmarPago(n){
+  document.getElementById('ov').classList.remove('open');
+  await adminPost('/admin/pagar',{n});
+  toast('✅ Pago de #'+n+' confirmado');
+}
+
+async function liberarBoleta(n){
+  if(!confirm('¿Liberar boleta #'+n+'?')) return;
+  document.getElementById('ov').classList.remove('open');
+  await adminPost('/admin/liberar',{n});
+  toast('Boleta #'+n+' liberada');
+}
+
+async function reiniciar(){
+  if(!confirm('¿Reiniciar TODOS los datos? No se puede deshacer.')) return;
+  // Liberar todas las boletas una por una no es eficiente, usamos un endpoint de reset
+  await fetch('/admin/reset?k='+ADMIN_KEY, {method:'POST'});
+  toast('Datos reiniciados');
+}
+
+async function exportar(){
+  const r=await fetch('/admin/datos?k='+ADMIN_KEY);
+  const data=await r.json();
+  const s=stats();
+  const payload={exportado:new Date().toISOString(),rifa:'Rifa Solidaria Marta Martínez',
+    resumen:{vendidas:s.v,reservadas:s.r,libres:s.l,recaudo:s.rec},boletas:data};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='rifa_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  toast('✅ Descargado');
+}
+
+// ══════════════════════════════════════════
+//  CAPTURAR IMAGEN
+// ══════════════════════════════════════════
+function capturar(){
+  toast('📸 Generando…');
+  const load=()=>html2canvas(document.getElementById('capture-area'),{
+    backgroundColor:'#0b1608',scale:2.5,useCORS:true,logging:false
+  }).then(c=>{ const a=document.createElement('a'); a.download='talonario_'+new Date().toISOString().slice(0,10)+'.png'; a.href=c.toDataURL(); a.click(); toast('✅ Imagen lista'); })
+    .catch(()=>toast('Error al capturar',true));
+  if(window.html2canvas){ load(); return; }
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  s.onload=load; s.onerror=()=>toast('Sin acceso a librería',true);
+  document.head.appendChild(s);
+}
+
+// ══════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════
+function showTab(name){
+  const all=['talonario','reservar','acceso','a-talonario','a-lista','a-resumen'];
+  all.forEach(t=>{
+    const p=document.getElementById('tab-'+t);
+    if(!p) return;
+    const visible=(esAdmin?['a-talonario','a-lista','a-resumen']:['talonario','reservar','acceso']).includes(t);
+    p.classList.toggle('active', t===name);
+    if(!visible) p.style.display='none';
+  });
+  const tabs=esAdmin
+    ? document.querySelectorAll('#tabs-admin .tb')
+    : document.querySelectorAll('#tabs-publico .tb');
+  const names=esAdmin?['a-talonario','a-lista','a-resumen']:['talonario','reservar','acceso'];
+  tabs.forEach((b,i)=>b.classList.toggle('active',names[i]===name));
+  if(name==='a-lista')    renderAdminLista();
+  if(name==='a-resumen')  renderResumen();
+}
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+function toast(msg,err=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show'+(err?' err':'');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ── INIT ──
+conectarWS();
+</script>
+</body>
+</html>
