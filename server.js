@@ -1,39 +1,29 @@
 /**
  * RIFA SOLIDARIA — Servidor
  * ─────────────────────────────────────────────────────
- * Rutas públicas:
- *   GET  /              → app HTML
- *   GET  /datos         → estado público (solo n y estado)
- *   POST /reservar      → comprador reserva un número
- *   POST /admin/login   → verifica clave, devuelve token temporal
+ * Persistencia: Google Sheets via Apps Script (doGet/doPost)
+ * Los datos sobreviven reinicios de Render.
  *
- * Rutas de admin (requieren header X-Token):
- *   GET  /admin/datos   → datos completos
- *   POST /admin/pagar   → confirmar pago
- *   POST /admin/liberar → liberar boleta
- *   POST /admin/reset   → reiniciar todo
- *
- * Seguridad: la ADMIN_KEY nunca llega al navegador.
- * El login devuelve un token aleatorio que expira en 8 horas.
+ * Variables de entorno necesarias:
+ *   ADMIN_KEY      → clave del panel admin
+ *   APPS_SCRIPT_URL → URL de tu Apps Script publicado
  */
 
-const http    = require('http');
-const fs      = require('fs');
-const path    = require('path');
-const crypto  = require('crypto');
+const http   = require('http');
+const fs     = require('fs');
+const path   = require('path');
+const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
-const { google } = require('googleapis');
 
-const PORT         = process.env.PORT         || 3000;
-const ADMIN_KEY    = process.env.ADMIN_KEY    || 'rifa2025admin';
-const SHEET_ID     = process.env.SHEET_ID     || '';
-const GOOGLE_CREDS = process.env.GOOGLE_CREDS || '';
+const PORT            = process.env.PORT            || 3000;
+const ADMIN_KEY       = process.env.ADMIN_KEY       || 'rifa2025admin';
+const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL || '';
 
 // ── Sesiones admin ────────────────────────────────────────
 const sessions = new Map();
 
 function crearToken() {
-  const token  = crypto.randomBytes(32).toString('hex');
+  const token = crypto.randomBytes(32).toString('hex');
   sessions.set(token, Date.now() + 8 * 60 * 60 * 1000);
   return token;
 }
@@ -47,61 +37,36 @@ function tokenValido(req) {
   return true;
 }
 
-// ── Google Sheets ─────────────────────────────────────────
-let sheetsClient = null;
-
-async function initSheets() {
-  if (!GOOGLE_CREDS || !SHEET_ID) {
-    console.warn('⚠️  Sin credenciales Google Sheets — usando memoria local');
-    return false;
-  }
+// ── Apps Script API ───────────────────────────────────────
+async function scriptGet() {
+  if (!APPS_SCRIPT_URL) return null;
   try {
-    const creds = JSON.parse(GOOGLE_CREDS);
-    const auth  = new google.auth.GoogleAuth({
-      credentials: creds,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets']
-    });
-    sheetsClient = google.sheets({ version: 'v4', auth });
-    console.log('✅ Google Sheets conectado');
-    return true;
+    const res  = await fetch(APPS_SCRIPT_URL, { redirect: 'follow' });
+    const data = await res.json();
+    return data.ok ? data.boletas : null;
   } catch (e) {
-    console.error('❌ Error Google Sheets:', e.message);
-    return false;
-  }
-}
-
-const RANGE = 'Boletas!A2:E101';
-
-async function leerSheets() {
-  if (!sheetsClient) return null;
-  try {
-    const res = await sheetsClient.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID, range: RANGE
-    });
-    return res.data.values || [];
-  } catch (e) {
-    console.error('Error leyendo Sheets:', e.message);
+    console.error('Error leyendo Apps Script:', e.message);
     return null;
   }
 }
 
-async function escribirFila(idx, boleta) {
-  if (!sheetsClient) return;
-  const row   = idx + 2;
-  const range = `Boletas!A${row}:E${row}`;
+async function scriptPost(body) {
+  if (!APPS_SCRIPT_URL) return { ok: false, error: 'Sin Apps Script URL' };
   try {
-    await sheetsClient.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID, range,
-      valueInputOption: 'RAW',
-      requestBody: { values: [[
-        boleta.n, boleta.estado, boleta.nombre, boleta.tel,
-        boleta.ts ? new Date(boleta.ts).toLocaleString('es-CO') : ''
-      ]]}
+    const res  = await fetch(APPS_SCRIPT_URL, {
+      method:   'POST',
+      redirect: 'follow',
+      headers:  { 'Content-Type': 'application/json' },
+      body:     JSON.stringify(body)
     });
-  } catch (e) { console.error('Error escribiendo Sheets:', e.message); }
+    return await res.json();
+  } catch (e) {
+    console.error('Error escribiendo Apps Script:', e.message);
+    return { ok: false, error: e.message };
+  }
 }
 
-// ── Estado en memoria ─────────────────────────────────────
+// ── Estado en memoria (espejo del Sheet) ──────────────────
 function initBoletas() {
   return Array.from({ length: 100 }, (_, i) => ({
     n: String(i).padStart(2, '0'), estado: 'libre',
@@ -111,26 +76,14 @@ function initBoletas() {
 
 let boletas = initBoletas();
 
-async function cargarDesdeSheets() {
-  const rows = await leerSheets();
-  if (!rows) return;
-  rows.forEach((row, i) => {
-    if (i > 99) return;
-    boletas[i] = {
-      n:      String(i).padStart(2, '0'),
-      estado: row[1] || 'libre',
-      nombre: row[2] || '',
-      tel:    row[3] || '',
-      ts:     row[4] ? Date.now() : null
-    };
-  });
-  console.log('📊 Datos cargados desde Google Sheets');
-}
-
-async function actualizarBoleta(idx, datos) {
-  boletas[idx] = { ...boletas[idx], ...datos };
-  await escribirFila(idx, boletas[idx]);
-  broadcast({ tipo: 'actualizar', boleta: boletas[idx] });
+async function cargarDesdeScript() {
+  const data = await scriptGet();
+  if (!data || !Array.isArray(data)) {
+    console.warn('⚠️  Sin datos de Apps Script — usando memoria vacía');
+    return;
+  }
+  boletas = data;
+  console.log('📊 Datos cargados desde Google Sheets via Apps Script');
 }
 
 // ── WebSocket ─────────────────────────────────────────────
@@ -174,7 +127,7 @@ async function handleRequest(req, res) {
     return;
   }
 
-  // POST /admin/login → verifica clave, devuelve token
+  // POST /admin/login
   if (req.method === 'POST' && url === '/admin/login') {
     leerBody(req, body => {
       try {
@@ -191,7 +144,7 @@ async function handleRequest(req, res) {
     return;
   }
 
-  // GET /admin/datos → completo
+  // GET /admin/datos
   if (req.method === 'GET' && url === '/admin/datos') {
     if (!tokenValido(req)) { res.writeHead(403); res.end('{"error":"No autorizado"}'); return; }
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -208,10 +161,15 @@ async function handleRequest(req, res) {
         if (isNaN(idx) || idx < 0 || idx > 99) throw new Error('Número inválido');
         if (!nombre || nombre.trim().length < 2)  throw new Error('Nombre requerido');
         if (boletas[idx].estado !== 'libre')       throw new Error('Ese número ya fue tomado');
-        await actualizarBoleta(idx, {
-          nombre: nombre.trim(), tel: (tel||'').trim(),
-          estado: 'reservado', ts: Date.now()
-        });
+
+        // Guardar en Sheets via Apps Script
+        const r = await scriptPost({ accion: 'reservar', n, nombre, tel });
+        if (!r.ok) throw new Error(r.error || 'Error guardando');
+
+        // Actualizar memoria
+        boletas[idx] = r.boleta;
+        broadcast({ tipo: 'actualizar', boleta: boletas[idx] });
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, boleta: boletas[idx] }));
       } catch (e) {
@@ -227,7 +185,11 @@ async function handleRequest(req, res) {
     if (!tokenValido(req)) { res.writeHead(403); res.end('{"error":"No autorizado"}'); return; }
     leerBody(req, async body => {
       const { n } = JSON.parse(body);
-      await actualizarBoleta(parseInt(n), { estado: 'vendido', ts: Date.now() });
+      const idx   = parseInt(n);
+      await scriptPost({ accion: 'pagar', n, key: ADMIN_KEY });
+      boletas[idx].estado = 'vendido';
+      boletas[idx].ts     = Date.now();
+      broadcast({ tipo: 'actualizar', boleta: boletas[idx] });
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
     });
@@ -239,7 +201,10 @@ async function handleRequest(req, res) {
     if (!tokenValido(req)) { res.writeHead(403); res.end('{"error":"No autorizado"}'); return; }
     leerBody(req, async body => {
       const { n } = JSON.parse(body);
-      await actualizarBoleta(parseInt(n), { estado: 'libre', nombre: '', tel: '', ts: null });
+      const idx   = parseInt(n);
+      await scriptPost({ accion: 'liberar', n, key: ADMIN_KEY });
+      boletas[idx] = { n: String(idx).padStart(2,'0'), estado:'libre', nombre:'', tel:'', ts:null };
+      broadcast({ tipo: 'actualizar', boleta: boletas[idx] });
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
     });
@@ -249,16 +214,8 @@ async function handleRequest(req, res) {
   // POST /admin/reset
   if (req.method === 'POST' && url === '/admin/reset') {
     if (!tokenValido(req)) { res.writeHead(403); res.end('{"error":"No autorizado"}'); return; }
+    await scriptPost({ accion: 'reset', key: ADMIN_KEY });
     boletas = initBoletas();
-    if (sheetsClient) {
-      try {
-        await sheetsClient.spreadsheets.values.update({
-          spreadsheetId: SHEET_ID, range: RANGE,
-          valueInputOption: 'RAW',
-          requestBody: { values: boletas.map(b => [b.n,'libre','','','']) }
-        });
-      } catch(e) { console.error('Error reset Sheets:', e.message); }
-    }
     broadcast({ tipo: 'init', boletas });
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
@@ -276,23 +233,18 @@ function leerBody(req, cb) {
 
 // ── Arrancar ──────────────────────────────────────────────
 async function main() {
-  await initSheets();
-  await cargarDesdeSheets();
+  console.log('🔄 Cargando datos desde Google Sheets...');
+  await cargarDesdeScript();
 
   server.listen(PORT, '0.0.0.0', () => {
-    const nets = require('os').networkInterfaces();
-    let ip = 'localhost';
-    for (const n of Object.values(nets).flat())
-      if (n.family === 'IPv4' && !n.internal) { ip = n.address; break; }
-
     console.log('\n╔══════════════════════════════════════════╗');
     console.log('║   🌱  RIFA SOLIDARIA — Servidor activo   ║');
     console.log('╠══════════════════════════════════════════╣');
-    console.log(`║  Local:  http://localhost:${PORT}             ║`);
-    console.log(`║  Red:    http://${ip}:${PORT}         ║`);
+    console.log(`║  http://localhost:${PORT}                     ║`);
     console.log('╠══════════════════════════════════════════╣');
-    console.log('║  Admin:  entra a la app → pestaña ADMIN  ║');
-    console.log('║  La clave NO se expone en el navegador   ║');
+    console.log(APPS_SCRIPT_URL
+      ? '║  ✅ Apps Script conectado                ║'
+      : '║  ⚠️  Sin APPS_SCRIPT_URL                 ║');
     console.log('╚══════════════════════════════════════════╝\n');
   });
 }
