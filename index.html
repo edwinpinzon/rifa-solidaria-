@@ -585,16 +585,28 @@ async function reservar(){
       document.getElementById('reserva-form').style.display='none';
       document.getElementById('reserva-exito').style.display='block';
       document.getElementById('reserva-exito').innerHTML=`
-        <div class="success-box">
+        <div class="success-box" id="voucher-box">
           <div style="font-size:2rem;margin-bottom:6px">🎉</div>
           <div class="big">#${n}</div>
-          <p><strong>${nombre}</strong>, tu boleta fue reservada exitosamente.<br><br>
-          Ahora paga <strong style="color:var(--gold)">$10.000</strong> por:<br>
-          <strong>Nequi / Daviplata: 321 808 6437</strong><br>
-          Martha Martínez<br><br>
-          Envía el comprobante por WhatsApp al mismo número 📲<br>
-          Tu boleta será confirmada en cuanto recibamos el pago ✅</p>
+          <div style="font-size:.7rem;color:var(--tdim);letter-spacing:2px;margin:4px 0 12px">BOLETA RESERVADA</div>
+          <p style="font-size:.9rem;line-height:1.8">
+            <strong>${nombre}</strong><br>
+            ${tel ? '📱 '+tel+'<br>' : ''}
+            <span style="font-size:.75rem;color:var(--tdim)">${new Date().toLocaleString('es-CO')}</span>
+          </p>
+          <div style="border-top:1px dashed rgba(226,185,59,.3);margin:12px 0;padding-top:12px;font-size:.82rem;line-height:1.9;color:var(--tdim)">
+            🎁 Premio: Mercado campesino $100.000<br>
+            📅 Sorteo: ~25 de Abril · Lotería de Boyacá<br>
+            💳 Paga $10.000 a:<br>
+            <strong style="color:var(--gold)">Nequi / Daviplata: 321 808 6437</strong><br>
+            <strong style="color:var(--text)">Martha Martínez</strong><br>
+            📲 Envía comprobante por WhatsApp ✅
+          </div>
+          <div style="font-size:.62rem;color:var(--tmuted);margin-top:4px">#RifaSolidaria · #ApoyoCampesino</div>
         </div>
+        <button class="btn btn-gold" onclick="descargarBaucher('${n}','${nombre}','${tel}')" style="margin-bottom:8px">
+          ⬇️ DESCARGAR BAUCHER
+        </button>
         <button class="btn btn-g" onclick="nuevaReserva()">🎟️ RESERVAR OTRA BOLETA</button>`;
       toast('✅ Boleta #'+n+' reservada para '+nombre);
     } else {
@@ -621,10 +633,25 @@ function nuevaReserva(){
 // ══════════════════════════════════════════
 //  ADMIN ACCIONES
 // ══════════════════════════════════════════
-function verificarClave(){
-  const k=document.getElementById('clave-in').value;
-  if(k===ADMIN_KEY){ entrarAdmin(); document.getElementById('clave-in').value=''; }
-  else{ toast('❌ Clave incorrecta',true); document.getElementById('clave-in').value=''; }
+async function verificarClave(){
+  const k=document.getElementById('clave-in').value.trim();
+  if(!k){ toast('⚠️ Ingresa la clave',true); return; }
+  const btn=document.querySelector('#tab-acceso .btn-gold');
+  if(btn){ btn.disabled=true; btn.textContent='Verificando...'; }
+  try{
+    const r=await fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clave:k})});
+    const data=await r.json();
+    if(data.ok){
+      adminToken=data.token;
+      sessionStorage.setItem('rifa_token',adminToken);
+      document.getElementById('clave-in').value='';
+      entrarAdmin();
+    } else {
+      toast('❌ Clave incorrecta',true);
+      document.getElementById('clave-in').value='';
+    }
+  } catch(e){ toast('❌ Error de conexion',true); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='INGRESAR'; } }
 }
 
 function entrarAdmin(){
@@ -641,6 +668,8 @@ function entrarAdmin(){
 
 function salirAdmin(){
   esAdmin=false;
+  adminToken='';
+  sessionStorage.removeItem('rifa_token');
   document.getElementById('tabs-admin').style.display='none';
   document.getElementById('tabs-publico').style.display='flex';
   ['a-talonario','a-lista','a-resumen'].forEach(t=>{ const p=document.getElementById('tab-'+t); if(p){p.style.display='none';p.classList.remove('active');} });
@@ -649,9 +678,12 @@ function salirAdmin(){
 }
 
 async function adminPost(endpoint, body){
-  const r=await fetch(endpoint+'?k='+ADMIN_KEY,{
-    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
+  const r=await fetch(endpoint,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-Token':adminToken},
+    body:JSON.stringify(body)
   });
+  if(r.status===403){ toast('❌ Sesion expirada, vuelve a entrar',true); salirAdmin(); return {ok:false}; }
   return r.json();
 }
 
@@ -699,13 +731,12 @@ async function liberarBoleta(n){
 
 async function reiniciar(){
   if(!confirm('¿Reiniciar TODOS los datos? No se puede deshacer.')) return;
-  // Liberar todas las boletas una por una no es eficiente, usamos un endpoint de reset
-  await fetch('/admin/reset?k='+ADMIN_KEY, {method:'POST'});
+  await fetch('/admin/reset',{method:'POST',headers:{'X-Token':adminToken}});
   toast('Datos reiniciados');
 }
 
 async function exportar(){
-  const r=await fetch('/admin/datos?k='+ADMIN_KEY);
+  const r=await fetch('/admin/datos',{headers:{'X-Token':adminToken}});
   const data=await r.json();
   const s=stats();
   const payload={exportado:new Date().toISOString(),rifa:'Rifa Solidaria Marta Martínez',
@@ -721,6 +752,125 @@ async function exportar(){
 // ══════════════════════════════════════════
 //  CAPTURAR IMAGEN
 // ══════════════════════════════════════════
+function descargarBaucher(n, nombre, tel){
+  // Crear canvas del baucher
+  const canvas = document.createElement('canvas');
+  const W=600, H=900;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+
+  // Fondo
+  ctx.fillStyle='#0e180a';
+  ctx.fillRect(0,0,W,H);
+
+  // Bandas doradas
+  ctx.fillStyle='#e2b93b';
+  ctx.fillRect(0,0,W,12); ctx.fillRect(0,H-12,W,12);
+  ctx.fillStyle='#a8841a';
+  ctx.fillRect(0,12,W,6); ctx.fillRect(0,H-18,W,6);
+
+  // Borde principal
+  ctx.strokeStyle='#a8841a';
+  ctx.lineWidth=2;
+  ctx.strokeRect(20,28,W-40,H-56);
+
+  // Titulo
+  ctx.fillStyle='#e2b93b';
+  ctx.font='bold 28px Arial';
+  ctx.textAlign='center';
+  ctx.fillText('🌱 RIFA SOLIDARIA 🌱', W/2, 90);
+
+  ctx.fillStyle='#7aaa68';
+  ctx.font='14px Arial';
+  ctx.fillText('Granja Integral Sostenible · Marta Martínez', W/2, 115);
+
+  // Línea divisora
+  ctx.strokeStyle='rgba(226,185,59,0.4)';
+  ctx.lineWidth=1;
+  ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(50,135); ctx.lineTo(W-50,135); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Número grande
+  ctx.fillStyle='#e2b93b';
+  ctx.font='bold 120px Arial';
+  ctx.textAlign='center';
+  ctx.shadowColor='rgba(226,185,59,0.4)';
+  ctx.shadowBlur=20;
+  ctx.fillText('#'+n, W/2, 280);
+  ctx.shadowBlur=0;
+
+  ctx.fillStyle='#7aaa68';
+  ctx.font='13px Arial';
+  ctx.fillText('NÚMERO DE BOLETA', W/2, 310);
+
+  // Línea divisora
+  ctx.strokeStyle='rgba(226,185,59,0.4)';
+  ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(50,330); ctx.lineTo(W-50,330); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Datos del comprador
+  ctx.fillStyle='#ffffff';
+  ctx.font='bold 20px Arial';
+  ctx.fillText(nombre, W/2, 370);
+  if(tel){
+    ctx.fillStyle='#7aaa68';
+    ctx.font='16px Arial';
+    ctx.fillText('📱 '+tel, W/2, 398);
+  }
+  ctx.fillStyle='#3a6030';
+  ctx.font='13px Arial';
+  ctx.fillText(new Date().toLocaleString('es-CO'), W/2, 430);
+
+  // Info rifa
+  ctx.fillStyle='rgba(255,255,255,0.06)';
+  ctx.roundRect(40,455,W-80,200,10);
+  ctx.fill();
+
+  const infoLines = [
+    ['🎁 Premio:','Mercado Campesino $100.000'],
+    ['🏷️ Valor:','$10.000'],
+    ['📅 Sorteo:','~25 de Abril de 2025'],
+    ['🎯 Método:','2 últimas cifras · Lotería de Boyacá'],
+  ];
+  let iy=490;
+  infoLines.forEach(([lbl,val])=>{
+    ctx.fillStyle='#7aaa68'; ctx.font='13px Arial'; ctx.textAlign='left';
+    ctx.fillText(lbl, 65, iy);
+    ctx.fillStyle='#dff0d0'; ctx.font='13px Arial'; ctx.textAlign='right';
+    ctx.fillText(val, W-65, iy);
+    iy+=42;
+  });
+
+  // Instrucciones pago
+  ctx.strokeStyle='rgba(226,185,59,0.3)';
+  ctx.lineWidth=1;
+  ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(50,670); ctx.lineTo(W-50,670); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle='#e2b93b'; ctx.font='bold 15px Arial'; ctx.textAlign='center';
+  ctx.fillText('💳 PAGA TU BOLETA', W/2, 700);
+  ctx.fillStyle='#e2b93b'; ctx.font='bold 26px Arial';
+  ctx.fillText('321 808 6437', W/2, 735);
+  ctx.fillStyle='#dff0d0'; ctx.font='15px Arial';
+  ctx.fillText('Nequi / Daviplata · Martha Martínez', W/2, 760);
+  ctx.fillStyle='#7aaa68'; ctx.font='13px Arial';
+  ctx.fillText('Envía el comprobante por WhatsApp al mismo número', W/2, 785);
+
+  // Hashtags
+  ctx.fillStyle='#2a5a1a'; ctx.font='12px Arial';
+  ctx.fillText('#RifaSolidaria · #ApoyoCampesino · #CaminoVerde', W/2, 830);
+
+  // Descargar
+  const a=document.createElement('a');
+  a.download='baucher_rifa_'+n+'_'+nombre.replace(/\s+/g,'_')+'.png';
+  a.href=canvas.toDataURL('image/png');
+  a.click();
+  toast('✅ Baucher descargado');
+}
+
 function capturar(){
   toast('📸 Generando…');
   const load=()=>html2canvas(document.getElementById('capture-area'),{
