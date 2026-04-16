@@ -143,7 +143,7 @@ function broadcast(msg) {
 }
 
 // ── HTTP ──────────────────────────────────────────────────
-function handleRequest(req, res) {
+async function handleRequest(req, res) {
   const url    = req.url.split('?')[0];
   const params = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
   const isAdmin = params.get('k') === ADMIN_KEY;
